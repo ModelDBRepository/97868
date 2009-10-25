@@ -1390,21 +1390,21 @@ ENDVERBATIM
 VERBATIM
 static double snap (void* vv) {
   int i, j, nsrc, ndest, ntvec, f, maxsz, size;
-  double *src, *dest, *tvec, dt, tstop, tt, val;
+  double *src, *dest, *tvec, dtt, tstop, tt, val;
   ndest = vector_instance_px(vv, &dest);
   nsrc = vector_arg_px(1, &src);
   ntvec = vector_arg_px(2, &tvec);
-  dt = *getarg(3);
+  dtt = *getarg(3);
   maxsz=vector_buffer_size(vv);
   tstop = tvec[nsrc-1];
-  size=(int)tstop/dt;
+  size=(int)tstop/dtt;
   if (size>maxsz) { 
     printf("%g > %g\n",size,maxsz);
     hoc_execerror("v.snap: insufficient room in dest", 0); }
   vector_resize(vv, size);
   if (nsrc!=ntvec) hoc_execerror("v.snap: src and tvec not same size", 0);
-  for (tt=0,i=0;i<size && tt<=tvec[0];i++,tt+=dt) dest[i]=src[0];
-  for (j=1, i--, tt-=dt; i<size; i++, val=-1e9, tt+=dt) {
+  for (tt=0,i=0;i<size && tt<=tvec[0];i++,tt+=dtt) dest[i]=src[0];
+  for (j=1, i--, tt-=dtt; i<size; i++, val=-1e9, tt+=dtt) {
     if (tvec[j]>tt) dest[i]=src[j-1]; else {
       for (;j<nsrc && tvec[j]<=tt;j++) if (src[j]>val) val=src[j];
       if (val==-1e9) printf("vecst:snap() internal ERROR\n");
@@ -1976,19 +1976,19 @@ VERBATIM
 static double smsy (void* vv) {	
   int i, j, k, nx, nc, nsum, points, maxsz;
   double *x, *sum, *c;
-  double del,tstop,dt;
+  double del,tstop,dtt;
 
-  if (! ifarg(1)) { printf("dest.smsy(tvec,CVLV_VEC,tstop[,dt,del])\n"); return -1.; }
+  if (! ifarg(1)) { printf("dest.smsy(tvec,CVLV_VEC,tstop[,dtt,del])\n"); return -1.; }
 
-  del=0.; dt=0.2;
+  del=0.; dtt=0.2;
   nsum = vector_instance_px(vv, &sum);
   nx = vector_arg_px(1,&x);
   nc = vector_arg_px(2,&c);
   tstop = *getarg(3);
-  if (ifarg(4)) dt = *getarg(4);
+  if (ifarg(4)) dtt = *getarg(4);
   if (ifarg(5)) del = *getarg(5);
 
-  points=(int)(tstop/dt+hoc_epsilon);
+  points=(int)(tstop/dtt+hoc_epsilon);
   if (nsum!=points) { 
     maxsz=vector_buffer_size(vv);
     if (points<=maxsz) {
@@ -2000,7 +2000,7 @@ static double smsy (void* vv) {
   }
 
   // don't zero out dest vec
-  for (i=0;i<nx;i++) for (j=0,k=(x[i]+del)/dt;j<nc && k<nsum;j++,k++) sum[k] += c[j];
+  for (i=0;i<nx;i++) for (j=0,k=(x[i]+del)/dtt;j<nc && k<nsum;j++,k++) sum[k] += c[j];
   return points;
 }
 ENDVERBATIM
