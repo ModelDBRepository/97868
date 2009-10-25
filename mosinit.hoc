@@ -1,0 +1,34 @@
+// $Id: mosinit.hoc,v 1.7 2008/10/06 16:35:59 samn Exp $ 
+
+load_file("nrngui.hoc")
+load_file("setup.hoc")
+
+objref vb
+vb=new VBox()
+vb.intercept(1)
+
+load_file("grvec.hoc")
+load_file("nqs.hoc")
+load_file("mysql_utils.hoc")
+load_file("drline.hoc")
+load_file("spud.hoc")
+
+xpanel("Fig from Data mining of time-domain features from neural extracellular field data")
+
+xlabel("Click draw SPUD sample fig to see figure 2 from ")
+xlabel("Data mining of time-domain features from neural extracellular field data")
+xlabel(" ")
+
+
+xlabel("See the readme.txt file for details on the interface which allows access")
+xlabel("to a MySQL server from the NEURON simulation environment (involves ")
+xlabel("compiling and linking a library).")
+xlabel(" ")
+
+xbutton("draw SPUD sample fig","genspudfig()")
+xbutton("exit","quit()")
+
+xpanel()
+
+vb.intercept(0)
+vb.map()

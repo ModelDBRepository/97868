@@ -1,0 +1,233 @@
+
+
+//demo code from 
+//Data-mining of time-domain features from neural extracellular field data (2007 - in press)
+//S Neymotin, DJ Uhlrich, KA Manning, WW Lytton
+
+//see testspud() procedure below, easy to use for extracting bumps from a data vector
+
+install_spud() //install SPUD
+
+CREEP_SPUD = 0 //creeping off by default
+NOV_SPUD = 0   //no overlapping by default
+
+dt=0.1
+
+// objref output
+// output=spud(vec)
+// output.pr(10)
+
+// spud(vec[,nq,#CUTS,LOGCUT,MIN]) -- use spud() to find "bumps"
+// other options
+pos_spud=1 // set to 1 to move whole curve up above 0
+maxp_spud=0.95 // draw top sample at 95% of max 
+minp_spud=0.05 // draw bottom sample at 5% of max
+over_spud=1    // turn over and try again if nothing found
+allover_spud=0 // turn over and add these locs (not debugged)
+verbose_spud=0 // give messages, can also turn on DEBUG_VECST for messages
+
+objref myg
+
+//SPUD - calls main algorithm in spud.mod
+obfunc spud () { local a,ii,npts,logflag,min,x,sz,midp localobj bq,cq,v1,v2,v3,bb,tl,vtmp
+  if (verbose_spud) printf("MAXTIME appears to be %g (dt=%g)\n",$o1.size*dt,dt)
+  npts=10 // n sample locations
+  tl=new List()
+  bq=new NQS("LOC","PEAK","WIDTH","BASE","HEIGHT","START","SLICES","SHARP","INDEX","FILE","NESTED") 
+  if (numarg()>1) cq=$o2 else cq=new NQS()
+  if (cq.m!=10) { cq.resize(0) 
+    cq.resize("LOC","PEAK","WIDTH","BASE","HEIGHT","START","SLICES","SHARP","INDEX","FILE","NESTED") }
+  if (numarg()>2) npts=$3
+  if (numarg()>3) logflag=$4 else logflag=0
+  if (numarg()>4) {
+    if (npts!=$o5.size) printf("Correcting npts from %d to %d\n",npts,npts=$o5.size)
+    if ($o5.ismono(1)) $o5.reverse
+    if (! $o5.ismono(-1)) {printf("spud: Arg 5 (%s) must be monotonic\n",$o5) return}
+  }
+
+  bq.listvecs(bb)
+  bq.pad(5000)
+  a=allocvecs(npts+3,2e4)
+  v1=mso[a+0] v2=mso[a+1] v3=mso[a+2]
+  for ii=0,npts-1 tl.append(mso[ii+a+3])
+  v1.copy($o1)
+  if (pos_spud) {
+    min=v1.min
+    v1.sub(min) // make it uniformly positive
+  } else min=0
+  if (numarg()>4) v2.copy($o5) else {
+    if(logflag==2){ //"double-log" spacing
+
+      midp = v1.max * 0.5 //50% of max is center of log axis in vertical direction
+
+      // 1/2 of lines btwn max and midpoint
+      vtmp=new Vector()
+      vtmp.indgen(2,2+npts/2-1,1)
+      vtmp.log()
+      vtmp.scale(maxp_spud*v1.max,midp)
+
+      v2.append(vtmp)
+
+      // 1/2 of lines btwn min and midpoint
+      vtmp.indgen(2,2+npts/2-1,1)
+      vtmp.log()
+      vtmp.scale(minp_spud*v1.max,midp)
+
+      v2.append(vtmp)
+
+      //make sure they're monotonically increasing
+      v2.sort()
+      v2.reverse()
+
+    } else {
+      v2.indgen(2,2+npts-1,1)   // sampling at npts points, start at 2 to avoid log(1)=0
+      if (logflag) v2.log() // log sampling
+      v2.scale(-maxp_spud*v1.max,-minp_spud*v1.max) v2.mul(-1)
+    }
+  }
+
+  vec0.copy(v2)
+
+  //v2 = thresh
+  v1.spud(v2,tl,bb)
+
+  if (pos_spud) { bq.v[1].add(min) bq.v[3].add(min) }
+  cq.append(bq)
+  sz=bq.size(1)
+  if (allover_spud) { // do it upside down as well
+    v1.mul(-1) // v2 will be upside-down
+    if (pos_spud) {min=v1.min v1.sub(min)}
+    v1.spud(v2,tl,bb)
+    bq.v[8].add(sz) bq.v[4].mul(-1) // turn HEIGHT upside down
+    cq.append(bq)
+  } else if (over_spud && sz==0) { // turn it over and try again
+    print "spud() checking upside-down"
+    v1.mul(-1) // v2 will be upside-down
+    v1.spud(v2,tl,bb)
+  } 
+  for case(&x,0,2,5) cq.v[x].mul(dt)
+  nqsdel(bq)
+  dealloc(a)
+  return cq
+}
+
+gvnew(-2)
+
+objref myv
+myv=new Vector(9000)
+objref output
+output=new NQS()
+
+gg()
+
+drawlr = 1
+drawth = 1
+minthreshlx=0
+maxthreshlx=9e3*dt
+shapesz=15
+black=1
+red=2
+blue=3
+green=4
+//sample routine to demonstrate SPUD feature extraction algorithm
+//to use testspud(vector,num_threshold_slices,log_spacing,[user-specified-thresholds])
+//on return, output will store the extracted "bumps" as an NQS database
+//$o1 = input data vector
+//$2 = num threshold lines
+//$3 = threshold spacing, 0=linear,1=log (optional)
+//$o4 = user-specified thresholds to pass in to SPUD (optional)
+proc testspud(){ local idx,left,right,center localobj vtmp
+
+  ge()
+
+  output = new NQS()
+
+  vec.copy($o1)
+  vec.sub(vec.min) //move min to 0 for better results
+
+  dt=0.1
+
+  if(numarg()>3){
+    spud(vec,output,$2,$3,$o4)
+  } else if(numarg()>2){
+    spud(vec,output,$2,$3)
+  } else{
+    spud(vec,output)
+  }
+
+  gg(vec,dt,black,1) 
+    
+  // draw in red circles at top of peaks
+  output.v[1].mark(g,output.v,"o",shapesz,red,1) 
+
+  if(drawlr) for(idx=0;idx<output.v.size;idx+=1){
+    left = output.v[5].x(idx)
+    right = left+output.v[2].x(idx)
+    g.mark(left, vec.x(left/dt), "t",shapesz,blue ,1)
+    g.mark(right,vec.x(right/dt),"s",shapesz,green,1)
+  }    
+   
+   // draw horizontal lines for slices
+  if(drawth) for vtr(&x,vec0) drline(minthreshlx,x,maxthreshlx,x,1,1)
+}
+
+////////////////////////////////////////////////////////////////////
+///////////////////funcs for drawing figs     //////////////////////
+objref myv,myf,vt
+myf=new File()
+myf.ropen("./rat_strobe_1.vec")
+myv=new Vector()
+myv.vread(myf)
+myf.close()
+//draws vertical scale bar
+//3795 is # of units in 200uV from calibration figs
+//$1 = x position
+//$2 = y starting position
+//$3 = scale [optional] , i.e. to draw 100uV scalebar scale=0.5
+//$o4 = graph [optional]
+proc vscalebar(){ local xpos,ypos,microv,sc localobj myg
+
+  xpos = $1
+  ypos = $2
+  microv = 3795 //200uV from calibration figs of Pot04m dam file
+  if(numarg()>2) sc = $3 else sc = 1
+
+  if(numarg()>3){
+    myg = $o3
+    myg.beginline(black,3)
+    myg.line(xpos,ypos)
+    myg.line(xpos,ypos+microv*sc)
+    myg.flush()
+  } else {
+    drline(xpos,ypos,xpos,ypos+microv*sc,black,3)
+  }
+}
+//generates spud/fudup fig showing bumps with left,peak,right as different shapes
+//also draws threshold lines
+proc genspudfig(){ local tmp_creep,tmp_nov
+  tmp_creep=CREEP_SPUD
+  tmp_nov=NOV_SPUD
+  CREEP_SPUD=1
+  NOV_SPUD=1
+  dt=0.1
+  allover_spud=0
+  drawlr=1
+  shapesz=15
+  ge()
+  minthreshlx=469.5
+  maxthreshlx=483.8
+  vt=new Vector()
+  vt.copy(myv,minthreshlx/dt-1,maxthreshlx/dt+1)
+  maxthreshlx=(maxthreshlx-minthreshlx)
+  minthreshlx=0
+  testspud(vt,10,1)
+  vscalebar(0,0,0.25) //draw vertical scalebar at 5,0 of 50uV
+  drline(0,0,1,0,black,3) //10ms horizontal scalebar  
+  Graph[0].label(0.085,0.088,"10ms")
+  Graph[0].label(0.085,0.130,"50uV")
+  {Graph[0].xaxis(3) Graph[0].yaxis(3)}
+  Graph[0].exec_menu("View = plot")  
+  CREEP_SPUD=tmp_creep
+  NOV_SPUD=tmp_nov
+}
+

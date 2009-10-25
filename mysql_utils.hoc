@@ -1,0 +1,150 @@
+// $Id: mysql_utils.hoc,v 1.11 2007/04/25 16:41:16 billl Exp $ 
+
+objref g_sql_ref //global objref for sql funcs
+g_sql_ref=new List()
+mydbg=0
+
+//creates a table in db currently connected to
+//$s1 = table name
+//$o2 = list of column names (as String objects or strdefs)
+//$3 = whether to create index for each col
+func CreateTable () { local idx,createidx localobj mys1,mytab,lcols
+
+  mys1 = new String()  //sql command string
+  mytab = new String() //table name
+
+  if(argtype(1)==1){
+    mytab = $o1
+  } else if(argtype(1)==2){
+    mytab = new String()
+    mytab.s = $s1
+  } else {
+    printf("CreateTable ERR0: first arg must be string!\n")
+    return 0
+  }
+
+  if(numarg()>2) createidx = $3 else createidx = 1
+
+  sprint(mys1.s,"create table %s (",mytab.s)
+
+  lcols = $o2
+
+  //build table create string
+  for(idx=0;idx<lcols.count;idx+=1){
+    strcat(mys1,lcols.o(idx))
+    strcat(mys1," double")
+    if(idx < lcols.count - 1){
+      strcat(mys1,",")
+    } else {
+      strcat(mys1,");")
+    }
+  }
+
+  if(mydbg) printf("cmd=%s\n",mys1.s)
+
+  //do actual mysql call to create table
+  if(Query_mysql(mys1.s) == -1 ){
+    printf("CreateTable ERRB: couldn't create table %s\n",$s1)
+    return 0
+  }
+
+  //create indices
+  if(createidx){
+    for(idx=0;idx<lcols.count;idx+=1){
+      sprint(mys1.s,"create index i%d on %s(%s);",idx,mytab.s,lcols.o(idx).s)
+      if(mydbg) printf("idx cmd = %s\n",mys1.s)
+      if(Query_mysql(mys1.s) == -1 ){
+        printf("CreateTable Warning: Couldn't create index for col %s\n",lcols.o(idx))
+      } else {
+        if(mydbg) printf("Created MySQL index for col %s\n",lcols.o(idx).s)
+      }
+    }
+  }
+
+  return 1
+}
+
+// SelectedColNames() -- overwrites tstr
+// returns List containing column names from last Select call
+obfunc SelectedColNames(){ local icols,ii localobj ls,xo,yo,str2
+
+  g_sql_ref=new List() //global list
+  ls=new List()        //non-global list
+
+  //# cols from last select
+  icols = NumCols_mysql()
+
+  //loop allocates space for strings passed to GetColNames_mysql
+  for ii=0,icols-1 g_sql_ref.append(new String("                              "))
+  tstr="GetColNames_mysql("
+  str2=new String()
+  for ii=0,icols-1{
+    sprint(str2.s,"g_sql_ref.o(%d).s,",ii)
+    strcat(tstr,str2.s)
+  }
+  chop(tstr) //get rid of last ','
+  strcat(tstr,")")
+
+  execute(tstr)
+
+  //copy sqll into non-global list
+  for ii=0,g_sql_ref.count-1{
+    str2=new String()
+    str2.s=g_sql_ref.o(ii).s
+    ls.append(str2)
+  }
+
+  //return non-global list
+  return ls
+}
+
+//converts the results of a sql select
+//into an nqs db & returns it
+//$s1 = sql query
+obfunc sql2nqs () { local nrows,ncols,idx localobj nq,ls,xo
+  if(Select_mysql($s1)==-1.0){printf("sql2nqs ERRA: Couldn't perform select") return nil}
+  ls = SelectedColNames()
+  nq = new NQS()
+  for ltr(xo,ls) nq.resize(xo.s)
+  nrows = NumRows_mysql()  ncols = ls.count
+  nq.pad(nrows)
+  nq.listvecs()
+  if(GetRows_mysql(nq.vl)==-1.0){
+    printf("sql2nqs ERRB: couldn't retrieve rows from sql select\n") return nil }
+  return nq
+}
+
+//converts nqs database to sql format automatically creates indices
+//$o1 = nqs
+//$s2 = name of table in mysql db
+//$3 = whether to create column nqs_row_id storing orig nqs row index
+//$4 = whether to create mysql index on each col
+// NB: table must not have 'index' as a col name: mysql reserved word
+func nqs2sql () { local idx,ncols,nrows,makeidcol,makeidx localobj lcolnames,nq
+  nq = $o1
+  ncols=nq.m  nrows=nq.size(1)
+  if(numarg()>=3) makeidcol = $3 else makeidcol = 0
+  if(numarg()>=4) makeidx = $4 else makeidx = 1
+  lcolnames = new List()
+  nq.listvecs()
+  for idx=0,ncols-1 lcolnames.append(nq.s[idx])
+  if (makeidcol) { 
+    nq.vl.append(nq.ind) vrsz(nrows,nq.ind) nq.ind.indgen(1) 
+    lcolnames.append(new String("nqs_row_id"))
+  }
+  if(!CreateTable($s2,lcolnames,makeidx)) {
+    printf("nqs2sql ERRA: couldn't create table %s\n",$s2) return 0 }
+  if(!Insert_mysql($s2,nq.vl)) {
+    printf("nqs2sql ERRB: couldn't insert nqs data into table %s\n",$s2) return  0 }
+  return 1
+}
+
+func nqs2sql2 () { local idx,ncols,nrows,makeidcol,makeidx localobj lcolnames,nq
+  nq = $o1 
+  sprint(tstr,"/tmp/nqs2sl%f",rdm.uniform(0,1))
+  tabform="\t" dblform="%f"
+  nq.pr(tstr,"NOHEADER")
+  sprint(tstr,"load data local infile '%s' into table %s",tstr,$s2)
+  Query_mysql(tstr)
+  return 1
+}

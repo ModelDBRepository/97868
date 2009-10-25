@@ -1,0 +1,181 @@
+// $Id: drline.hoc,v 1.14 2007/02/27 12:43:42 billl Exp $
+
+// load_file("drline.hoc")
+
+// click and drag left button to draw lines on top of a figure interactively
+// select graph to draw on with setdrl(Graph[])
+// set color with clr, line width with lne
+// select 'Draw curve' for continuous drawing
+// select 'Arrow' to place an arrow pointing according to direction of drag
+
+//* drline(x0,y0,x1,y1,OPT graph or color) 
+proc drline () { local color,line
+  if (numarg()==0) { print "drline(x0,y0,x1,y1[,g,col,line])"
+    return }
+  if (numarg()>4) { 
+    if (argtype(5)==0) { color=$5 
+                         if (numarg()>5) line=$6
+    } else {             graphItem = $o5 
+                         if (numarg()>5) color=$6
+                         if (numarg()>6) line=$7      }}
+  graphItem.beginline(color,line)
+  graphItem.line($1,$2)
+  graphItem.line($3,$4)
+  graphItem.flush()
+}
+
+//* set to drawlines on top of fig
+proc setdrl () {
+  g=$o1 // select this graph for further drawing
+  xpanel("")
+  $o1.menu_tool("Draw line","drl")
+  $o1.menu_tool("Draw curve","drc")
+  $o1.menu_tool("Label","drw")
+  $o1.menu_tool("Arrow","dra")
+  xvalue("Color","clr",1,"",1)
+  xvalue("Line","lne",1,"",1)
+  xbutton("Erase","g.erase_all()")
+  xpanel()
+  $o1.exec_menu("Draw line")
+}
+
+//* draw line interactively on top of fig
+proc drl ()  { local x0,y0,type,x,y,keystate
+  type=$1 x=$2 y=$3 keystate=$4
+  if (type==2) {x0=x y0=y}
+  if (type==3) drline(x0,y0,x,y,clr,lne)
+}
+
+//* draw arrow interactively on top of fig
+proc dra ()  { local x0,y0,xsz,ysz,type,x,y,keystate,rot
+  type=$1 x=$2 y=$3 keystate=$4
+  xsz=0.1*(g.size(2)-g.size(1)) // 10% of size
+  ysz=0.1*(g.size(4)-g.size(3))
+  if (type==2) {x0=x y0=y}
+  if (type==3) {
+    if (y==y0) {
+      if (x>x0) rot=-90 else rot=90
+    } else {
+      rot=-atan((x-x0)/(y-y0))/2/PI*360
+      if ((y-y0)<=0) rot+=180
+    }
+    g.glyph(arrow(),x,y,xsz,ysz,rot)
+  }
+}
+
+//* draw curve interactively on top of fig
+proc drc ()  { local x0,y0,type,x,y,keystate
+  type=$1 x=$2 y=$3 keystate=$4
+  if (type==2) { x0=x y0=y
+  } else if (type==1) {
+    drline(x0,y0,x,y,clr,lne)
+    x0=x y0=y
+  } else if (type==3) drline(x0,y0,x,y,clr,lne)
+}
+
+//* write label
+proc drw ()  { local x0,y0,type,x,y,keystate
+  type=$1 x=$2 y=$3 keystate=$4
+  if (type==2) { 
+   string_dialog("Label: ",tstr) 
+   g.label(x,y,tstr,1,1,0.5,0.5,clr)
+  }
+}
+
+obfunc arrow () { localobj o
+  o=new Glyph()
+  o.m(0,0)  o.l(0,1) o.s(1,4) // draw vertical line
+  o.m(-0.1,0.3) o.l(0,1) o.s(1,4)
+  o.l(0.1,0.3) o.s(1,4)
+  return o
+}
+
+//* hist(g,vec,min,max,bins)
+{clr=1 hflg=2 ers=1 sym=1} // clr:color, hflg=1 draw lines; 2 draw boxes; 3 fill in; ers=erase
+// style determined by hflg
+// hflg==0 lines with dots
+// hflg==0.x offset lines with dots
+// hflg==1 outlines but not down to zero
+// hflg==2 outlines with lines down to zero
+// hflg==3 just dots
+// hflg==3.x lines between dots
+func hist () { local a,b,c,min,max,wid,bins,ii,jj,offset,x,y
+  if (numarg()==0) { printf("hist(g,vec,min,max,bins)\n") return 0}
+  if ($o2.size<2)  { printf("hist: $o2 too small\n",$o2) return -1}
+  if ($o2.min==$o2.max)  { printf("hist: %s all one value: %g\n",$o2,$o2.min) return -1}
+  if (numarg()==5) {min=$3 max=$4 bins=$5 
+  } else if (numarg()==4) { min=0 max=$3 bins=$4 
+  } else if (numarg()<=3) { 
+    if ((min=0.95*$o2.min)<0) min=1.05*$o2.min
+    if ((max=1.05*$o2.max)<0) max=0.95*$o2.max
+    bins=100
+    if (min>0) min*=0.9 else min*=1.1
+    if (max>0) min*=1.1 else max*=0.9
+    if (numarg()==3) bins=$3
+  }
+  wid=(max-min)/bins
+  // print min,max,max-wid,wid
+  a=b=c=allocvecs(3,2e4) b+=1 c+=2
+  offset=0 x=-1
+  if (ers) $o1.erase_all()
+  mso[c].hist($o2,min,bins,wid) // c has values
+  mso[a].resize(2*mso[c].size())
+  mso[a].indgen(0.5) 
+  mso[a].apply("int") 
+  mso[b].index(mso[c], mso[a]) 
+  mso[a].mul(wid) mso[a].add(min)
+  mso[b].rotate(1)
+  mso[b].x[0] = 0 
+  mso[b].append(mso[b].x[mso[b].size-1],0)
+  mso[a].append(max,max)
+  if (hflg==1 || hflg==2) { 
+    mso[b].line($o1, mso[a],clr,4)
+    if (hflg==2) for vtr(&x,mso[a]) drline(x,0,x,mso[b].x[i1],$o1,clr,4)
+  } else if (int(hflg)==0 || hflg>=3) { 
+    if (hflg%1!=0) offset=hflg*wid // use eg -0.5+ii/8 to move back to integer
+    mso[a].indgen(min,max-wid,wid)
+    mso[a].add(wid/2+offset)
+    // print mso[a].min,mso[a].max
+    // mso[c].mark($o1,mso[a],"O",6,clr,2) // this will place points where 0 count
+    for jj=0,mso[a].size-1 if (mso[c].x[jj]!=0) {
+      if (hflg!=3 && hflg%1!=0) drline(mso[a].x[jj],0,mso[a].x[jj],mso[c].x[jj],$o1,clr,4)
+      if (hflg==4) {
+        if (x!=-1) drline(x,y,mso[a].x[jj],mso[c].x[jj],$o1,clr,4)
+        x=mso[a].x[jj] y=mso[c].x[jj]
+      }
+      $o1.mark(mso[a].x[jj],mso[c].x[jj],sg(sym).t,10,clr,2) // don't place points with 0 count
+    }
+  }
+  $o1.flush()
+  // $o1.size(min,max,0,mso[b].max)
+  dealloc(a)
+  return 1
+}
+
+proc smgs () { local a,b,c,min,max,wid,bins,ii,jj,offset,x,y localobj v1
+  if ($o2.size<2)  { printf("smgs: $o2 too small\n",$o2) return -1}
+  if ($o2.min==$o2.max)  { printf("smgs: %s all one value: %g\n",$o2,$o2.min) return -1}
+  if (numarg()==5) {min=$3 max=$4 bins=$5 
+  } else if (numarg()==4) { min=0 max=$3 bins=$4 
+  } else if (numarg()<=3) { 
+    if ((min=0.95*$o2.min)<0) min=1.05*$o2.min
+    if ((max=1.05*$o2.max)<0) max=0.95*$o2.max
+    bins=100
+    if (min>0) min*=0.9 else min*=1.1
+    if (max>0) min*=1.1 else max*=0.9
+    if (numarg()==3) bins=$3
+  }
+  wid=(max-min)/bins
+  // print min,max,max-wid,wid
+  a=b=c=allocvecs(3,1e4) b+=1 c+=2
+  offset=0 x=-1
+  if (ers) $o1.erase_all()
+  mso[a].indgen(min,max,wid)
+  if (0) {
+    mso[c].smgs($o2,min,max,wid,wid*wid/4) // c has values
+    mso[c].line($o1, mso[a],clr,4)
+  } else {
+    v1=$o2.sumgauss(min,max,wid,wid/8) // c has values
+    v1.line($o1, mso[a],clr,4)
+  }
+}
