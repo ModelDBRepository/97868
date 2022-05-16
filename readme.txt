@@ -318,4 +318,5 @@ references:
     Neuroinformatics. 2006;4(2):163-76.
     WW Lytton
 
-
+---
+2022-05-16 Make MySQL.mod valid with Neuron 9.0
