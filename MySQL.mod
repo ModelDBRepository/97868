@@ -34,7 +34,7 @@ char g_host[1024]={0};
 
 extern Object** hoc_objgetarg();
 extern int ivoc_list_count(Object*);
-int list_vector_px();
+int list_vector_px(Object *ob, int i, double **px);
 extern char* hoc_object_name(Object*);
 
 void FreeRes(MYSQL_RES** ppRes){
@@ -81,7 +81,7 @@ int CheckConnection(){
   }  
   g_mysql.reconnect=1;//make sure auto-reconnect on
   int iCheck = mysql_ping(&g_mysql); //check if connection timed-out  
-  if(iCheck==0) return 1.0; //server still connected  
+  if(iCheck==0) return 1; //server still connected  
   if(iCheck==CR_SERVER_GONE_ERROR){  
     printf("MySQL Connection timed out, reconnecting...\n");
     return 1;
@@ -317,9 +317,10 @@ FUNCTION GetRows(){
 
 VERBATIM
 
+#include <ctype.h>
+
 int StringEqualIgnoreCase(char* p1,char* p2,int n){
-  int i;
-  for(i=0;i<n;i++){
+  for(int i=0;i<n;i++){
     if(tolower(p1[i])!=tolower(p2[i])){
       return 0;
     }
@@ -464,7 +465,7 @@ FUNCTION UpdateCol(){
     if(verbose) printf("sql cmd = %s\n",sql_command);
 
     if(mysql_real_query(&g_mysql,sql_command,strlen(sql_command))==0){
-      if(verbose) printf( "col %s updated\n");
+      if(verbose) printf( "col %s updated\n", col_name);
     } else {
       printf( "Failed to update record: Error: %s\n", mysql_error(&g_mysql));
     }
@@ -811,7 +812,7 @@ FUNCTION Query(){
 : display client & server versions
 PROCEDURE VersionInfo(){
   VERBATIM
-  if(!CheckConnection()) return;
+  if(!CheckConnection()) return 0;
   printf("MySQL Client Version is %s\n",mysql_get_client_info());
   printf("MySQL Server Version is %s\n",mysql_get_server_info(&g_mysql));
   ENDVERBATIM
