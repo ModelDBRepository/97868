@@ -29,7 +29,6 @@ extern double* hoc_pgetarg();
 extern double hoc_call_func(Symbol*, int narg);
 extern FILE* hoc_obj_file_arg(int narg);
 extern Object** hoc_objgetarg();
-extern void vector_resize();
 extern int vector_instance_px();
 extern void* vector_arg();
 extern double* vector_vec();
@@ -41,11 +40,11 @@ extern Object* ivoc_list_item(Object*, int);
 extern int hoc_is_double_arg(int narg);
 extern char* hoc_object_name(Object*);
 char ** hoc_pgargstr();
-int list_vector_px();
-int list_vector_px2();
-int list_vector_px3();
-int list_vector_resize();
-int ismono1();
+int list_vector_px(Object*, int, double**);
+int list_vector_px2(Object*, int, double**, void**);
+int list_vector_px3(Object*, int, double**, void**);
+int list_vector_resize(Object*, int, int);
+int ismono1(double*,int,int);
 static void hxe() { hoc_execerror("",0); }
 static void hxf(void *ptr) { free(ptr); hoc_execerror("",0); }
 ENDVERBATIM
@@ -128,7 +127,7 @@ static double spud (void* vv) {
     }
   }
   //** truncate dest vectors to multiples of 3:
-  for (k=0;k<lc;k++) vector_resize(vvd[k],(int)(floor((double)jj[k]/3.)*3.));
+  for (k=0;k<lc;k++) vector_resize((IvocVect*)vvd[k],(int)(floor((double)jj[k]/3.)*3.));
   for (i=0; i<nsrc; i++) tmp[i]=0.; // clear temp space
   //** go through all the slices to find identical peaks and save widths and locations
   // tmp[] uses triplets centered around a location corresponding to a max loc in the
@@ -252,7 +251,7 @@ static double spud (void* vv) {
   } else for(i=0;i<iNumBumps;i++) NESTED[i]=0.0;
 
   //** finish up
-  for (i=0;i<lc2;i++) vector_resize(vnq[i], nqsz);
+  for (i=0;i<lc2;i++) vector_resize((IvocVect*)vnq[i], nqsz);
   if (k!=nqsz) { printf("spud ERRI INT ERR: %d %d\n",k,nqsz); hxf(tmp); }
   free(tmp);
   return jj[0];
