@@ -94,11 +94,12 @@ PARAMETER {
 ASSIGNED { RES }
 
 VERBATIM
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#ifndef NRN_VERSION_GTEQ_8_2_0
 #include <limits.h> // contains LONG_MAX 
 #include <sys/time.h> 
-#include <string.h>
 extern double* hoc_pgetarg();
 extern double hoc_call_func(Symbol*, int narg);
 extern FILE* hoc_obj_file_arg(int narg);
@@ -114,7 +115,8 @@ extern int hoc_is_double_arg(int narg);
 extern char* hoc_object_name(Object*);
 extern int nrn_mlh_gsort();
 char ** hoc_pgargstr();
-double *vector_newsize(void*,int); 
+#endif
+double *vector_newsize(void*,int);
 int list_vector_px(Object*,int,double**);
 int list_vector_px2(Object*,int,double**,void**);
 int list_vector_px3(Object*,int,double**,void**);
@@ -1029,7 +1031,7 @@ static double keyind(void* vv) {
   int i, j, k, ni, nk, nv[VRRY], num;
   double *ind, *key, *vvo[VRRY];
   ni = vector_instance_px((IvocVect*)vv, &ind); // vv is ind
-  for (i=0;ifarg(i);i++); i--; // drop back by one to get numarg()
+  for (i=0;ifarg(i);i++) {} i--; // drop back by one to get numarg()
   if (i>VRRY) hoc_execerror("ERR: keyind can only handle VRRY vectors", 0);
   num = i-1; // number of vectors to be picked apart 
   for (i=0;i<num;i++) { 
@@ -1079,7 +1081,7 @@ ENDVERBATIM
 : max is maximum diff to add to the tq db
 VERBATIM
 static double nearall (void* vv) {
-  register int	lo, hi, mid;
+  int lo, hi, mid;
   int i, j, k, kk, nx, ny, minind, nv[4];
   Object *ob;
   void* vvl[4];

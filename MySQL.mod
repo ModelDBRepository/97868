@@ -32,10 +32,12 @@ char g_user_name[1024]={0};
 char g_user_pass[1024]={0};
 char g_host[1024]={0};
 
+#ifndef NRN_VERSION_GTEQ_8_2_0
 extern Object** hoc_objgetarg();
 extern int ivoc_list_count(Object*);
-int list_vector_px(Object *ob, int i, double **px);
 extern char* hoc_object_name(Object*);
+#endif
+int list_vector_px(Object *ob, int i, double **px);
 
 void FreeRes(MYSQL_RES** ppRes){
   if(!ppRes) return;

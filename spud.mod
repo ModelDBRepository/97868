@@ -22,9 +22,9 @@ PARAMETER {
 
 VERBATIM
 #include <stdlib.h>
+#ifndef NRN_VERSION_GTEQ_8_2_0
 #include <math.h>
-#include <values.h> // contains MAXLONG 
-#include <sys/time.h> 
+#include <sys/time.h>
 extern double* hoc_pgetarg();
 extern double hoc_call_func(Symbol*, int narg);
 extern FILE* hoc_obj_file_arg(int narg);
@@ -40,12 +40,9 @@ extern Object* ivoc_list_item(Object*, int);
 extern int hoc_is_double_arg(int narg);
 extern char* hoc_object_name(Object*);
 char ** hoc_pgargstr();
-int list_vector_px(Object*, int, double**);
-int list_vector_px2(Object*, int, double**, void**);
+#endif
 int list_vector_px3(Object*, int, double**, void**);
-int list_vector_resize(Object*, int, int);
 int ismono1(double*,int,int);
-static void hxe() { hoc_execerror("",0); }
 static void hxf(void *ptr) { free(ptr); hoc_execerror("",0); }
 ENDVERBATIM
 
